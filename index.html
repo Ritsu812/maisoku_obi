@@ -878,30 +878,29 @@ window.processAll=async function(){
   showLoading("PDF出力中...");
   await new Promise(r=>setTimeout(r,50));
   try{
-    const jsPDF=await loadJsPDF();
-    let targetW=0;
-    for(const p of pages){
-      if(p.skip)continue;
-      const c=await renderPageToCanvas(p,OUTPUT_SCALE);
-      const wPt=c.width/OUTPUT_SCALE*72/72;
-      if(wPt>targetW)targetW=wPt;
-    }
-    if(targetW===0)targetW=842;
-
+    const jsPDF=window.jspdf.jsPDF;
     const obiAspect=obiImg.naturalWidth/obiImg.naturalHeight;
     let doc=null,first=true;
 
     for(let i=0;i<pages.length;i++){
       document.getElementById("loadingText").textContent="処理中... "+(i+1)+"/"+pages.length;
       const p=pages[i];
-      const c=await renderPageToCanvas(p,OUTPUT_SCALE);
-      const origW=c.width/OUTPUT_SCALE,origH=c.height/OUTPUT_SCALE;
-      const s=targetW/origW;
+
+      // キャンバスサイズ制限：長辺4000px以下に抑える
+      let scale=OUTPUT_SCALE;
+      const testC=await renderPageToCanvas(p,1);
+      const maxDim=Math.max(testC.width,testC.height);
+      if(maxDim*scale>4000)scale=4000/maxDim;
+
+      const c=await renderPageToCanvas(p,scale);
+      const pageWPt=c.width/scale;
+      const pageHPt=c.height/scale;
 
       if(p.skip){
-        const pw=targetW,ph=origH*s;
-        if(first){doc=new jsPDF({unit:"pt",format:[pw,ph]});first=false}else doc.addPage([pw,ph]);
-        doc.addImage(c.toDataURL("image/jpeg",0.92),"JPEG",0,0,pw,ph);
+        const orient=pageWPt>pageHPt?"l":"p";
+        if(first){doc=new jsPDF({unit:"pt",format:[pageWPt,pageHPt],orientation:orient});first=false}
+        else doc.addPage([pageWPt,pageHPt],orient);
+        doc.addImage(c.toDataURL("image/jpeg",0.92),"JPEG",0,0,pageWPt,pageHPt);
         continue;
       }
 
@@ -911,11 +910,13 @@ window.processAll=async function(){
       if(z[2]&&(1-bl)>0.001)parts.push([bl,1]);
       if(!parts.length)continue;
 
-      const contentH=parts.reduce((a,pr)=>a+(pr[1]-pr[0])*origH*s,0);
-      const obiH=targetW/obiAspect;
-      const pageH=contentH+obiH;
+      const contentH=parts.reduce((a,pr)=>a+(pr[1]-pr[0])*pageHPt,0);
+      const obiH=pageWPt/obiAspect;
+      const totalH=contentH+obiH;
 
-      if(first){doc=new jsPDF({unit:"pt",format:[targetW,pageH]});first=false}else doc.addPage([targetW,pageH]);
+      const orient=pageWPt>totalH?"l":"p";
+      if(first){doc=new jsPDF({unit:"pt",format:[pageWPt,totalH],orientation:orient});first=false}
+      else doc.addPage([pageWPt,totalH],orient);
 
       let yOff=0;
       for(const[start,end] of parts){
@@ -923,11 +924,11 @@ window.processAll=async function(){
         const partCanvas=document.createElement("canvas");
         partCanvas.width=c.width;partCanvas.height=srcH;
         partCanvas.getContext("2d").drawImage(c,0,srcY,c.width,srcH,0,0,c.width,srcH);
-        const partH=(end-start)*origH*s;
-        doc.addImage(partCanvas.toDataURL("image/jpeg",0.92),"JPEG",0,yOff,targetW,partH);
+        const partH=(end-start)*pageHPt;
+        doc.addImage(partCanvas.toDataURL("image/jpeg",0.92),"JPEG",0,yOff,pageWPt,partH);
         yOff+=partH;
       }
-      doc.addImage(obiImg.src,"JPEG",0,yOff,targetW,obiH);
+      doc.addImage(obiImg.src,"JPEG",0,yOff,pageWPt,obiH);
     }
 
     if(!doc){hideLoading();showStatus("processStatus","出力するページがありません","error");return}
