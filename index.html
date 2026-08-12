@@ -118,7 +118,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic UI"
 @keyframes spin{to{transform:rotate(360deg)}}
 .loading-box p{font-size:13px;color:#555}
 </style>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js"></script>
 </head>
 <body>
 <div class="app">
@@ -480,7 +479,7 @@ window.processAll=async function(){
   showLoading("PDF出力中...");
   await new Promise(r=>setTimeout(r,50));
   try{
-    const{jsPDF}=window.jspdf;
+    const jsPDF=await loadJsPDF();
     let targetW=0;
     for(const p of pages){
       if(p.skip)continue;
@@ -545,6 +544,17 @@ window.processAll=async function(){
     const box=document.getElementById("outputBox");box.style.display="block";box.innerHTML="<strong>📁 ダウンロード完了</strong>"+fn;
   }catch(e){hideLoading();showStatus("processStatus","✗ "+e.message,"error");console.error(e)}
 };
+
+async function loadJsPDF(){
+  if(window.jspdf)return window.jspdf.jsPDF;
+  return new Promise((resolve,reject)=>{
+    const s=document.createElement("script");
+    s.src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js";
+    s.onload=()=>{if(window.jspdf)resolve(window.jspdf.jsPDF);else reject(new Error("jsPDFの初期化に失敗"))};
+    s.onerror=()=>reject(new Error("jsPDFの読み込みに失敗しました。ネットワーク接続を確認してください"));
+    document.head.appendChild(s);
+  });
+}
 
 function showStatus(id,msg,type){const el=document.getElementById(id);el.textContent=msg;el.className="status "+type}
 function showLoading(t){document.getElementById("loadingText").textContent=t;document.getElementById("loadingOverlay").classList.add("show")}
