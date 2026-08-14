@@ -111,6 +111,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic UI"
 .out-hint{font-size:10px;color:#999;margin-top:6px}
 .output-box{margin-top:8px;padding:9px 11px;background:#e6faf1;border-radius:6px;font-size:11px;color:#1a8a52;display:none}
 .output-box strong{display:block;margin-bottom:3px;font-size:12px}
+.obi-popup{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:90;align-items:center;justify-content:center;padding:40px}
+.obi-popup.show{display:flex}
+.obi-popup-inner{background:#fff;border-radius:12px;padding:20px;max-width:700px;max-height:80vh;overflow:auto;text-align:center;position:relative}
+.obi-popup-inner img{max-width:100%;border-radius:6px;margin-bottom:10px}
+.obi-popup-inner .close{position:absolute;top:8px;right:14px;font-size:22px;color:#888;cursor:pointer;background:none;border:none}
+.obi-popup-inner p{font-size:12px;color:#888}
 .loading-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100;align-items:center;justify-content:center}
 .loading-overlay.show{display:flex}
 .loading-box{background:#fff;border-radius:16px;padding:28px 36px;text-align:center}
@@ -123,11 +129,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic UI"
 <div class="app">
   <div class="hdr">
     <div class="hdr-title">マイソク帯変換ツール</div>
-    <label class="obi-info" id="obiInfo">
-      <span class="label">自社帯:</span>
-      <span class="name" id="obiName">デフォルト</span>
-      <input type="file" accept="image/*" onchange="changeObi(this)">
-    </label>
+    <div style="display:flex;align-items:center;gap:8px;margin-left:auto">
+      <div class="obi-info" id="obiInfo" onclick="showObiPopup()" style="cursor:pointer">
+        <span class="label">自社帯:</span>
+        <span class="name" id="obiName">未設定</span>
+        <span style="font-size:10px;color:#aaa;margin-left:2px">👁</span>
+      </div>
+      <label class="obi-info" style="cursor:pointer;padding:5px 10px;margin-left:0;position:relative">
+        <span style="font-size:11px">🎨 変更</span>
+        <input type="file" accept="image/*" onchange="changeObi(this)" style="position:absolute;inset:0;opacity:0;cursor:pointer">
+      </label>
+    </div>
   </div>
   <div class="main">
     <div class="left">
@@ -171,6 +183,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic UI"
         <div id="outputBox" class="output-box"></div>
       </div>
     </div>
+  </div>
+</div>
+<div class="obi-popup" id="obiPopup" onclick="hideObiPopup()">
+  <div class="obi-popup-inner" onclick="event.stopPropagation()">
+    <button class="close" onclick="hideObiPopup()">✕</button>
+    <div id="obiPopupContent"><p>帯画像が設定されていません</p></div>
   </div>
 </div>
 <div class="loading-overlay" id="loadingOverlay">
@@ -948,6 +966,19 @@ window.processAll=async function(){
 function loadJsPDF(){
   return Promise.resolve(window.jspdf.jsPDF);
 }
+
+// 帯プレビューポップアップ
+window.showObiPopup=function(){
+  const popup=document.getElementById("obiPopup");
+  const content=document.getElementById("obiPopupContent");
+  if(obiReady){
+    content.innerHTML='<p style="font-size:13px;font-weight:600;color:#333;margin-bottom:10px">現在設定中の自社帯</p><img src="'+obiSrc+'" alt="帯画像"><p>クリックで閉じる</p>';
+  }else{
+    content.innerHTML='<p style="font-size:14px;color:#888;padding:30px">帯画像が設定されていません<br><br>ヘッダーの「🎨 変更」ボタンから<br>帯画像を選択してください</p>';
+  }
+  popup.classList.add("show");
+}
+window.hideObiPopup=function(){document.getElementById("obiPopup").classList.remove("show")}
 
 function showStatus(id,msg,type){const el=document.getElementById(id);el.textContent=msg;el.className="status "+type}
 function showLoading(t){document.getElementById("loadingText").textContent=t;document.getElementById("loadingOverlay").classList.add("show")}
