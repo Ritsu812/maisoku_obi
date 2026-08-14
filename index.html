@@ -805,7 +805,7 @@ window.clearAll=function(){
   showStatus("pdfStatus","✓ すべて削除しました","info");
 };
 window.removePage=function(idx){
-  if(!confirm("ページ "+(idx+1)+" を削除？"))return;
+  if(!confirm("ページ "+(idx+1)+" を削除しますか？"))return;
   pages.splice(idx,1);if(currentIdx>=pages.length)currentIdx=Math.max(0,pages.length-1);
   renderPageList();updateOutputUI();updateSkipAllBtn();
   if(!pages.length){resetPlaceholder();document.getElementById("processBtn").disabled=true;document.getElementById("clearAllBtn").disabled=true;document.getElementById("rotateBtn").disabled=true;updatePageNav()}
