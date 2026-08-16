@@ -805,7 +805,7 @@ window.clearAll=function(){
   showStatus("pdfStatus","✓ すべて削除しました","info");
 };
 window.removePage=function(idx){
-  if(!confirm("ページ "+(idx+1)+" を削除しますか？"))return;
+  if(!confirm("ページ "+(idx+1)+" を削除？"))return;
   pages.splice(idx,1);if(currentIdx>=pages.length)currentIdx=Math.max(0,pages.length-1);
   renderPageList();updateOutputUI();updateSkipAllBtn();
   if(!pages.length){resetPlaceholder();document.getElementById("processBtn").disabled=true;document.getElementById("clearAllBtn").disabled=true;document.getElementById("rotateBtn").disabled=true;updatePageNav()}
@@ -900,27 +900,38 @@ window.processAll=async function(){
     const obiAspect=obiImg.naturalWidth/obiImg.naturalHeight;
     let doc=null,first=true;
 
+    // 幅統一：A4横（842pt）基準
+    const targetW=842;
+
+    // 第2パス：各ページを処理
     for(let i=0;i<pages.length;i++){
       document.getElementById("loadingText").textContent="処理中... "+(i+1)+"/"+pages.length;
       const p=pages[i];
 
-      // キャンバスサイズ制限：長辺4000px以下に抑える
+      // キャンバスサイズ制限：長辺4000px以下
       let scale=OUTPUT_SCALE;
       const testC=await renderPageToCanvas(p,1);
       const maxDim=Math.max(testC.width,testC.height);
       if(maxDim*scale>4000)scale=4000/maxDim;
 
       const c=await renderPageToCanvas(p,scale);
-      const pageWPt=c.width/scale;
-      const pageHPt=c.height/scale;
+      const origWPt=c.width/scale;
+      const origHPt=c.height/scale;
 
       if(p.skip){
-        const orient=pageWPt>pageHPt?"l":"p";
-        if(first){doc=new jsPDF({unit:"pt",format:[pageWPt,pageHPt],orientation:orient});first=false}
-        else doc.addPage([pageWPt,pageHPt],orient);
-        doc.addImage(c.toDataURL("image/jpeg",0.92),"JPEG",0,0,pageWPt,pageHPt);
+        // スキップ：幅統一してそのままコピー
+        const s=targetW/testC.width;
+        const pw=origWPt*s,ph=origHPt*s;
+        const orient=pw>ph?"l":"p";
+        if(first){doc=new jsPDF({unit:"pt",format:[pw,ph],orientation:orient});first=false}
+        else doc.addPage([pw,ph],orient);
+        doc.addImage(c.toDataURL("image/jpeg",0.92),"JPEG",0,0,pw,ph);
         continue;
       }
+
+      // 幅統一スケール
+      const s=targetW/testC.width;
+      const pageWPt=origWPt*s;
 
       const parts=[];const tl=p.top_line,bl=p.bottom_line,z=p.zones;
       if(z[0]&&tl>0.001)parts.push([0,tl]);
@@ -928,7 +939,7 @@ window.processAll=async function(){
       if(z[2]&&(1-bl)>0.001)parts.push([bl,1]);
       if(!parts.length)continue;
 
-      const contentH=parts.reduce((a,pr)=>a+(pr[1]-pr[0])*pageHPt,0);
+      const contentH=parts.reduce((a,pr)=>a+(pr[1]-pr[0])*origHPt*s,0);
       const obiH=pageWPt/obiAspect;
       const totalH=contentH+obiH;
 
@@ -942,7 +953,7 @@ window.processAll=async function(){
         const partCanvas=document.createElement("canvas");
         partCanvas.width=c.width;partCanvas.height=srcH;
         partCanvas.getContext("2d").drawImage(c,0,srcY,c.width,srcH,0,0,c.width,srcH);
-        const partH=(end-start)*pageHPt;
+        const partH=(end-start)*origHPt*s;
         doc.addImage(partCanvas.toDataURL("image/jpeg",0.92),"JPEG",0,yOff,pageWPt,partH);
         yOff+=partH;
       }
