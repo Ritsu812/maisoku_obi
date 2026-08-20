@@ -487,7 +487,7 @@ window.processAll=async function(){
       const totalH=contentH+obiH;
       const newPage=newDoc.addPage([targetW,totalH]);
 
-      let yOff=obiH;
+      let topY=totalH;
       for(const[start,end] of parts){
         const srcY=Math.round(c.height*start),srcH=Math.round(c.height*(end-start));
         const pc=document.createElement("canvas");pc.width=c.width;pc.height=srcH;
@@ -495,8 +495,8 @@ window.processAll=async function(){
         const d=pc.toDataURL("image/jpeg",0.92);const r2=await fetch(d);
         const b=new Uint8Array(await r2.arrayBuffer());const img=await newDoc.embedJpg(b);
         const partH=(end-start)*pageHPt*s;
-        newPage.drawImage(img,{x:0,y:totalH-yOff-partH,width:targetW,height:partH});
-        yOff+=partH;
+        topY-=partH;
+        newPage.drawImage(img,{x:0,y:topY,width:targetW,height:partH});
       }
       newPage.drawImage(obiImage,{x:0,y:0,width:targetW,height:obiH});
     }
